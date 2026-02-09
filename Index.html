@@ -1,283 +1,224 @@
-import tkinter as tk
-from tkinter import ttk
-from tkinter import filedialog  # ✅ диалоги выбора файла
-import json
-import os
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Расход топлива (Октябрь–Март)</title>
 
-
-# ----------------------------
-# Температуры
-# ----------------------------
-temp_coef = {
-    "+8": 0.43, "+7": 0.47, "+6": 0.51, "+5": 0.555,
-    "+4": 0.60, "+3": 0.645, "+2": 0.69, "+1": 0.73,
-    "0": 0.77, "-1": 0.815, "-2": 0.86, "-3": 0.90,
-    "-4": 0.94, "-5": 0.995, "-6": 1.03, "-7": 1.07,
-    "-8": 1.11, "-9": 1.155, "-10": 1.20, "-11": 1.245,
-    "-12": 1.29, "-13": 1.33, "-14": 1.37, "-15": 1.415,
-    "-16": 1.46, "-17": 1.50, "-18": 1.54, "-19": 1.585,
-    "-20": 1.63, "-21": 1.67, "-22": 1.71, "-23": 1.755,
-    "-24": 1.80, "-25": 1.845, "-26": 1.89, "-27": 1.93,
-    "-28": 1.97, "-29": 2.015, "-30": 2.06,
+<style>
+body {
+  font-family: Arial, sans-serif;
+  background: #f5f5f5;
+  padding: 15px;
 }
 
-# ----------------------------
-# Дрова
-# ----------------------------
-wood_coef = {
-    "Смешаные": 0.186,
-    "Клен": 0.262,
-    "Граб": 0.290,
-    "Ясень": 0.274,
-    "Дуб": 0.285,
-    "Бук": 0.253,
-    "Береза": 0.230,
-    "Вяз": 0.250,
-    "Сосна": 0.208,
-    "Ольха": 0.193,
-    "Ель": 0.178,
-    "Осика": 0.183,
-    "Липа": 0.179,
-    "Пихта": 0.175,
-    "Тополь": 0.146
+h1 {
+  text-align: center;
 }
 
-# ----------------------------
-# Храним строки
-# ----------------------------
-rows = []
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  background: #fff;
+  padding: 8px;
+  margin-bottom: 6px;
+  border-radius: 6px;
+}
 
+.row strong {
+  width: 80px;
+}
 
-# ----------------------------
-# Пересчёт всего
-# ----------------------------
-def calculate_all(*args):
-    total_sum = 0
+input, select {
+  width: 70px;
+}
 
-    for row in rows:
-        try:
-            a = temp_coef[row["temp"].get()]
-            b = float(row["area"].get())
-            c = float(row["days"].get())
-            d = float(row["burj"].get())
-            e = wood_coef[row["wood"].get()]
-            f = float(row["last"].get())
+.result {
+  font-weight: bold;
+  width: 70px;
+}
 
-            result = a * b * c / d / e / f
+.total {
+  text-align: center;
+  font-size: 20px;
+  font-weight: bold;
+  margin-top: 15px;
+}
 
-            row["result"].config(text=f"{result:.2f}")
+.buttons {
+  text-align: center;
+  margin-top: 15px;
+}
 
-            # добавляем в сумму только если галочка включена
-            if row["enabled"].get() == 1:
-                total_sum += result
+.status {
+  text-align: center;
+  margin-top: 8px;
+  font-size: 14px;
+}
+</style>
+</head>
 
-        except:
-            row["result"].config(text="...")
+<body>
 
-    label_total.config(text=f"Сумма: {total_sum:.2f} скл.м.")
+<h1>Расход топлива</h1>
 
+<div id="table"></div>
 
-# ----------------------------
-# Создание строки месяца
-# ----------------------------
-def make_month_row(parent, month_name):
-    frame = tk.Frame(parent)
-    frame.pack(pady=5)
+<div class="total" id="total">Сумма: 0.00 скл.м.</div>
 
-    # Название месяца
-    tk.Label(frame, text=month_name, width=10,
-             anchor="w", font=("Arial", 10, "bold")).pack(side="left")
+<div class="buttons">
+  <button onclick="saveState()">Сохранить</button>
+  <button onclick="loadState()">Загрузить</button>
+</div>
 
-    # Температура
-    combo_temp = ttk.Combobox(frame, values=list(temp_coef.keys()),
-                              width=5, state="readonly")
-    combo_temp.current(0)
-    combo_temp.pack(side="left")
+<div class="status" id="status"></div>
 
-    tk.Label(frame, text=" * ").pack(side="left")
+<input type="file" id="fileInput" accept=".json" style="display:none">
 
-    # кв/м
-    entry_area = tk.Entry(frame, width=6)
-    entry_area.insert(0, "25")
-    entry_area.pack(side="left")
+<script>
+const tempCoef = {
+  "+8":0.43,"+7":0.47,"+6":0.51,"+5":0.555,
+  "+4":0.60,"+3":0.645,"+2":0.69,"+1":0.73,
+  "0":0.77,"-1":0.815,"-2":0.86,"-3":0.90,
+  "-4":0.94,"-5":0.995,"-6":1.03,"-7":1.07,
+  "-8":1.11,"-9":1.155,"-10":1.20,"-11":1.245,
+  "-12":1.29,"-13":1.33,"-14":1.37,"-15":1.415,
+  "-16":1.46,"-17":1.50,"-18":1.54,"-19":1.585,
+  "-20":1.63,"-21":1.67,"-22":1.71,"-23":1.755,
+  "-24":1.80,"-25":1.845,"-26":1.89,"-27":1.93,
+  "-28":1.97,"-29":2.015,"-30":2.06
+};
 
-    tk.Label(frame, text=" * ").pack(side="left")
+const woodCoef = {
+  "Смешаные":0.186,"Клен":0.262,"Граб":0.290,"Ясень":0.274,
+  "Дуб":0.285,"Бук":0.253,"Береза":0.230,"Вяз":0.250,
+  "Сосна":0.208,"Ольха":0.193,"Ель":0.178,"Осика":0.183,
+  "Липа":0.179,"Пихта":0.175,"Тополь":0.146
+};
 
-    # дни
-    entry_days = tk.Entry(frame, width=6)
-    entry_days.insert(0, "30")
-    entry_days.pack(side="left")
+const months = ["Октябрь","Ноябрь","Декабрь","Январь","Февраль","Март"];
+const rows = [];
 
-    tk.Label(frame, text=" / ").pack(side="left")
+const table = document.getElementById("table");
 
-    # к.бурж
-    entry_burj = tk.Entry(frame, width=6)
-    entry_burj.insert(0, "0.44")
-    entry_burj.pack(side="left")
+months.forEach(month => {
+  const row = document.createElement("div");
+  row.className = "row";
 
-    tk.Label(frame, text=" / ").pack(side="left")
+  row.innerHTML = `
+    <strong>${month}</strong>
 
-    # дерево
-    combo_wood = ttk.Combobox(frame, values=list(wood_coef.keys()),
-                              width=10, state="readonly")
-    combo_wood.current(0)
-    combo_wood.pack(side="left")
+    <select class="temp"></select> *
+    <input type="number" class="area" value="25"> *
+    <input type="number" class="days" value="30"> /
+    <input type="number" class="burj" value="0.44"> /
+    <select class="wood"></select> /
+    <input type="number" class="last" value="1000"> =
+    <span class="result">0.00</span>
+    <label><input type="checkbox" class="enabled" checked> в сумму</label>
+  `;
 
-    tk.Label(frame, text=" / ").pack(side="left")
+  table.appendChild(row);
 
-    # 1000
-    entry_last = tk.Entry(frame, width=6)
-    entry_last.insert(0, "1000")
-    entry_last.pack(side="left")
+  const tempSelect = row.querySelector(".temp");
+  Object.keys(tempCoef).forEach(t => {
+    tempSelect.innerHTML += `<option value="${t}">${t}</option>`;
+  });
 
-    tk.Label(frame, text=" = ").pack(side="left")
+  const woodSelect = row.querySelector(".wood");
+  Object.keys(woodCoef).forEach(w => {
+    woodSelect.innerHTML += `<option value="${w}">${w}</option>`;
+  });
 
-    # результат
-    label_result = tk.Label(frame, text="0.00",
-                            width=7, font=("Arial", 10, "bold"))
-    label_result.pack(side="left")
+  rows.push(row);
+});
 
-    # чекбокс включения месяца
-    enabled_var = tk.IntVar(value=1)
+function calculateAll() {
+  let total = 0;
 
-    checkbox = tk.Checkbutton(
-        frame,
-        text="в сумму",
-        variable=enabled_var,
-        command=calculate_all
-    )
-    checkbox.pack(side="left", padx=10)
+  rows.forEach(row => {
+    try {
+      const a = tempCoef[row.querySelector(".temp").value];
+      const b = parseFloat(row.querySelector(".area").value);
+      const c = parseFloat(row.querySelector(".days").value);
+      const d = parseFloat(row.querySelector(".burj").value);
+      const e = woodCoef[row.querySelector(".wood").value];
+      const f = parseFloat(row.querySelector(".last").value);
 
-    # сохраняем строку
-    row = {
-        "temp": combo_temp,
-        "area": entry_area,
-        "days": entry_days,
-        "burj": entry_burj,
-        "wood": combo_wood,
-        "last": entry_last,
-        "result": label_result,
-        "enabled": enabled_var
+      const result = a * b * c / d / e / f;
+      row.querySelector(".result").textContent = result.toFixed(2);
+
+      if (row.querySelector(".enabled").checked) {
+        total += result;
+      }
+    } catch {
+      row.querySelector(".result").textContent = "...";
     }
-    rows.append(row)
+  });
 
-    # автообновление
-    combo_temp.bind("<<ComboboxSelected>>", calculate_all)
-    combo_wood.bind("<<ComboboxSelected>>", calculate_all)
+  document.getElementById("total").textContent =
+    `Сумма: ${total.toFixed(2)} скл.м.`;
+}
 
-    for entry in [entry_area, entry_days, entry_burj, entry_last]:
-        entry.bind("<KeyRelease>", calculate_all)
+document.addEventListener("input", calculateAll);
+document.addEventListener("change", calculateAll);
+calculateAll();
 
+// ---------- Сохранение ----------
+function saveState() {
+  const data = rows.map(row => ({
+    temp: row.querySelector(".temp").value,
+    area: row.querySelector(".area").value,
+    days: row.querySelector(".days").value,
+    burj: row.querySelector(".burj").value,
+    wood: row.querySelector(".wood").value,
+    last: row.querySelector(".last").value,
+    enabled: row.querySelector(".enabled").checked
+  }));
 
-# -----------------------------
-# 💾 Сохранение состояния
-# -----------------------------
-def save_state():
-    file_path = filedialog.asksaveasfilename(
-        defaultextension=".json",
-        filetypes=[("JSON файлы", "*.json")],
-        title="Сохранить таблицу как..."
-    )
+  const blob = new Blob([JSON.stringify(data, null, 2)], {type:"application/json"});
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "fuel_calc.json";
+  a.click();
 
-    if not file_path:
-        return
+  document.getElementById("status").textContent = "Сохранено!";
+}
 
-    data = {}
+// ---------- Загрузка ----------
+function loadState() {
+  document.getElementById("fileInput").click();
+}
 
-    for i, row in enumerate(rows):
-        data[i] = {
-            "temp": row["temp"].get(),
-            "area": row["area"].get(),
-            "days": row["days"].get(),
-            "burj": row["burj"].get(),
-            "wood": row["wood"].get(),
-            "last": row["last"].get(),
-            "enabled": row["enabled"].get()
-        }
+document.getElementById("fileInput").addEventListener("change", e => {
+  const file = e.target.files[0];
+  if (!file) return;
 
-    with open(file_path, "w", encoding="utf-8") as f:
-        json.dump(data, f, ensure_ascii=False, indent=4)
+  const reader = new FileReader();
+  reader.onload = () => {
+    const data = JSON.parse(reader.result);
 
-    label_status.config(text="Сохранено!")
+    data.forEach((saved, i) => {
+      const row = rows[i];
+      if (!row) return;
 
+      row.querySelector(".temp").value = saved.temp;
+      row.querySelector(".area").value = saved.area;
+      row.querySelector(".days").value = saved.days;
+      row.querySelector(".burj").value = saved.burj;
+      row.querySelector(".wood").value = saved.wood;
+      row.querySelector(".last").value = saved.last;
+      row.querySelector(".enabled").checked = saved.enabled;
+    });
 
-# -----------------------------
-# 📂 Загрузка состояния
-# -----------------------------
-def load_state():
-    file_path = filedialog.askopenfilename(
-        filetypes=[("JSON файлы", "*.json")],
-        title="Загрузить таблицу..."
-    )
+    calculateAll();
+    document.getElementById("status").textContent = "Загружено!";
+  };
+  reader.readAsText(file);
+});
+</script>
 
-    if not file_path:
-        return
-
-    with open(file_path, "r", encoding="utf-8") as f:
-        data = json.load(f)
-
-    for i, row in enumerate(rows):
-        if str(i) in data:
-            saved = data[str(i)]
-
-            row["temp"].set(saved["temp"])
-
-            row["area"].delete(0, tk.END)
-            row["area"].insert(0, saved["area"])
-
-            row["days"].delete(0, tk.END)
-            row["days"].insert(0, saved["days"])
-
-            row["burj"].delete(0, tk.END)
-            row["burj"].insert(0, saved["burj"])
-
-            row["last"].delete(0, tk.END)
-            row["last"].insert(0, saved["last"])
-
-            row["wood"].set(saved["wood"])
-            row["enabled"].set(saved["enabled"])
-
-    calculate_all()
-    label_status.config(text="Загружено!")
-
-
-# ----------------------------
-# Главное окно
-# ----------------------------
-window = tk.Tk()
-window.title("Расход топлива (Октябрь–Март)")
-window.geometry("1300x450")
-
-main = tk.Frame(window)
-main.pack(pady=15)
-
-# 6 месяцев
-make_month_row(main, "Октябрь")
-make_month_row(main, "Ноябрь")
-make_month_row(main, "Декабрь")
-make_month_row(main, "Январь")
-make_month_row(main, "Февраль")
-make_month_row(main, "Март")
-
-# Итоговая сумма
-label_total = tk.Label(window, text="Сумма: 0.00 скл.м.",
-                       font=("Arial", 15, "bold"))
-label_total.pack(pady=10)
-
-# Статус
-label_status = tk.Label(window, text="", font=("Arial", 10))
-label_status.pack()
-
-# Кнопки
-btn_frame = tk.Frame(window)
-btn_frame.pack(pady=15)
-
-tk.Button(btn_frame, text="Сохранить...", command=save_state,
-          width=15).pack(side="left", padx=10)
-
-tk.Button(btn_frame, text="Загрузить...", command=load_state,
-          width=15).pack(side="left", padx=10)
-
-calculate_all()
-
-window.mainloop()
+</body>
+</html>
