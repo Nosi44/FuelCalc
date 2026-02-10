@@ -114,8 +114,7 @@ months.forEach(month => {
     <input type="number" class="area" value="25"> *
     <input type="number" class="days" value="30"> /
     <input type="number" class="burj" value="0.44"> /
-    <select class="wood"></select> /
-    <input type="number" class="last" value="1000"> =
+    <select class="wood"></select> =
     <span class="result">0.00</span>
     <label><input type="checkbox" class="enabled" checked> в сумму</label>
   `;
@@ -145,9 +144,8 @@ function calculateAll() {
       const c = parseFloat(row.querySelector(".days").value);
       const d = parseFloat(row.querySelector(".burj").value);
       const e = woodCoef[row.querySelector(".wood").value];
-      const f = parseFloat(row.querySelector(".last").value);
 
-      const result = a * b * c / d / e / f;
+      const result = a * b * c / d / e;
       row.querySelector(".result").textContent = result.toFixed(2);
 
       if (row.querySelector(".enabled").checked) {
@@ -174,7 +172,6 @@ function saveState() {
     days: row.querySelector(".days").value,
     burj: row.querySelector(".burj").value,
     wood: row.querySelector(".wood").value,
-    last: row.querySelector(".last").value,
     enabled: row.querySelector(".enabled").checked
   }));
 
@@ -209,7 +206,6 @@ document.getElementById("fileInput").addEventListener("change", e => {
       row.querySelector(".days").value = saved.days;
       row.querySelector(".burj").value = saved.burj;
       row.querySelector(".wood").value = saved.wood;
-      row.querySelector(".last").value = saved.last;
       row.querySelector(".enabled").checked = saved.enabled;
     });
 
