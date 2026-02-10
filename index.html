@@ -144,8 +144,9 @@ function calculateAll() {
       const c = parseFloat(row.querySelector(".days").value);
       const d = parseFloat(row.querySelector(".burj").value);
       const e = woodCoef[row.querySelector(".wood").value];
+      const f = 1000;
 
-      const result = a * b * c / d / e;
+      const result = a * b * c / d / e / f;
       row.querySelector(".result").textContent = result.toFixed(2);
 
       if (row.querySelector(".enabled").checked) {
