@@ -31,7 +31,7 @@ button{
 
 <h2>Число → текст (UA)</h2>
 
-<input type="text" id="number" placeholder="Введіть суму">
+<input type="text" id="number" placeholder="Введіть число">
 <br>
 <button onclick="convert()">Конвертувати</button>
 <button onclick="copyText()">Скопіювати</button>
@@ -75,20 +75,17 @@ function triad(n, female){
 
 function convert(){
     let value = document.getElementById("number").value.replace(",",".");
-    let num = parseFloat(value);
+    let num = parseInt(value);
 
     if(isNaN(num)){
         alert("Введіть коректне число");
         return;
     }
 
-    let hryvnias = Math.floor(num);
-    let kop = Math.round((num - hryvnias)*100);
-
     let parts = [];
 
-    let thousands = Math.floor(hryvnias/1000);
-    let rest = hryvnias % 1000;
+    let thousands = Math.floor(num/1000);
+    let rest = num % 1000;
 
     if(thousands){
         parts.push(triad(thousands,true));
@@ -98,9 +95,6 @@ function convert(){
     if(rest || !parts.length){
         parts.push(triad(rest,false));
     }
-
-    parts.push(morph(hryvnias,"гривня","гривні","гривень"));
-    parts.push(String(kop).padStart(2,"0") + " " + morph(kop,"копійка","копійки","копійок"));
 
     document.getElementById("result").innerText = parts.join(" ");
 }
