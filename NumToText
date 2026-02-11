@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<title>Число → текст (UA)</title>
+<style>
+body{
+    font-family: Arial;
+    max-width: 500px;
+    margin: 40px auto;
+    text-align: center;
+}
+input{
+    width: 80%;
+    padding: 8px;
+    font-size: 16px;
+}
+button{
+    padding: 8px 15px;
+    margin: 5px;
+    font-size: 15px;
+    cursor: pointer;
+}
+#result{
+    margin-top: 20px;
+    min-height: 40px;
+}
+</style>
+</head>
+<body>
+
+<h2>Число → текст (UA)</h2>
+
+<input type="text" id="number" placeholder="Введіть суму">
+<br>
+<button onclick="convert()">Конвертувати</button>
+<button onclick="copyText()">Скопіювати</button>
+
+<div id="result"></div>
+
+<script>
+
+function morph(n, f1, f2, f5){
+    n = Math.abs(n) % 100;
+    if(n > 10 && n < 20) return f5;
+    n = n % 10;
+    if(n == 1) return f1;
+    if(n >= 2 && n <= 4) return f2;
+    return f5;
+}
+
+function triad(n, female){
+    const units_m = ["","один","два","три","чотири","пʼять","шість","сім","вісім","девʼять"];
+    const units_f = ["","одна","дві","три","чотири","пʼять","шість","сім","вісім","девʼять"];
+    const teens = ["десять","одинадцять","дванадцять","тринадцять","чотирнадцять",
+                   "пʼятнадцять","шістнадцять","сімнадцять","вісімнадцять","девʼятнадцять"];
+    const tens = ["","","двадцять","тридцять","сорок","пʼятдесят",
+                  "шістдесят","сімдесят","вісімдесят","девʼяносто"];
+    const hundreds = ["","сто","двісті","триста","чотириста",
+                      "пʼятсот","шістсот","сімсот","вісімсот","девʼятсот"];
+
+    let result = [];
+
+    result.push(hundreds[Math.floor(n/100)]);
+
+    if(n%100 >= 10 && n%100 <= 19){
+        result.push(teens[n%100-10]);
+    }else{
+        result.push(tens[Math.floor((n%100)/10)]);
+        result.push((female ? units_f : units_m)[n%10]);
+    }
+
+    return result.filter(Boolean).join(" ");
+}
+
+function convert(){
+    let value = document.getElementById("number").value.replace(",",".");
+    let num = parseFloat(value);
+
+    if(isNaN(num)){
+        alert("Введіть коректне число");
+        return;
+    }
+
+    let hryvnias = Math.floor(num);
+    let kop = Math.round((num - hryvnias)*100);
+
+    let parts = [];
+
+    let thousands = Math.floor(hryvnias/1000);
+    let rest = hryvnias % 1000;
+
+    if(thousands){
+        parts.push(triad(thousands,true));
+        parts.push(morph(thousands,"тисяча","тисячі","тисяч"));
+    }
+
+    if(rest || !parts.length){
+        parts.push(triad(rest,false));
+    }
+
+    parts.push(morph(hryvnias,"гривня","гривні","гривень"));
+    parts.push(String(kop).padStart(2,"0") + " " + morph(kop,"копійка","копійки","копійок"));
+
+    document.getElementById("result").innerText = parts.join(" ");
+}
+
+function copyText(){
+    let text = document.getElementById("result").innerText;
+    navigator.clipboard.writeText(text);
+}
+
+</script>
+
+</body>
+</html>
