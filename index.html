@@ -1,110 +1,254 @@
 <!DOCTYPE html>
-<html lang="uk">
+<html lang="ru">
 <head>
 <meta charset="UTF-8">
-<title>Число → текст (UA)</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Расход топлива</title>
+
 <style>
 body{
-    font-family: Arial;
-    max-width: 500px;
-    margin: 40px auto;
-    text-align: center;
+    font-family: Arial, sans-serif;
+    background:#f2f2f2;
+    padding:10px;
 }
-input{
-    width: 80%;
-    padding: 8px;
-    font-size: 16px;
+.month{
+    background:#fff;
+    padding:8px;
+    margin-bottom:8px;
+    border-radius:8px;
+    display:flex;
+    flex-wrap:wrap;
+    align-items:center;
+    gap:4px;
 }
-button{
-    padding: 8px 15px;
-    margin: 5px;
-    font-size: 15px;
-    cursor: pointer;
+.month b{ width:90px; }
+input,select{
+    padding:4px;
+    font-size:14px;
 }
-#result{
-    margin-top: 20px;
-    min-height: 40px;
+.result{
+    font-weight:bold;
+    margin-left:6px;
+}
+.total{
+    font-size:20px;
+    font-weight:bold;
+    margin-top:12px;
+}
+.buttons{ margin-top:10px; }
+.converter{
+    margin-top:25px;
+    background:#fff;
+    padding:12px;
+    border-radius:8px;
+}
+.converter input{
+    width:100%;
+    padding:6px;
+    font-size:16px;
+}
+#wordsResult{
+    margin-top:10px;
+    font-weight:bold;
 }
 </style>
 </head>
+
 <body>
 
-<h2>Число → текст (UA)</h2>
+<h2>Расход топлива</h2>
 
-<input type="text" id="number" placeholder="Введіть число">
-<br>
-<button onclick="convert()">Конвертувати</button>
-<button onclick="copyText()">Скопіювати</button>
+<div id="months"></div>
 
-<div id="result"></div>
+<div class="total" id="total">Сумма: 0.00 скл.м.</div>
+
+<div class="buttons">
+<button onclick="save()">💾 Сохранить</button>
+<button onclick="load()">📂 Загрузить</button>
+</div>
+
+<div class="converter">
+<input type="number" id="numberInput"
+       placeholder="Введите число (до 99 999 999)"
+       oninput="convertNumber()">
+<div id="wordsResult"></div>
+</div>
 
 <script>
 
-function morph(n, f1, f2, f5){
-    n = Math.abs(n) % 100;
-    if(n > 10 && n < 20) return f5;
-    n = n % 10;
-    if(n == 1) return f1;
-    if(n >= 2 && n <= 4) return f2;
-    return f5;
+// ====== КОЭФФИЦИЕНТЫ ======
+const temp_coef={
+"+8":0.43,"+7":0.47,"+6":0.51,"+5":0.555,"+4":0.60,"+3":0.645,
+"+2":0.69,"+1":0.73,"0":0.77,"-1":0.815,"-2":0.86,"-3":0.90,
+"-4":0.94,"-5":0.995,"-6":1.03,"-7":1.07,"-8":1.11,"-9":1.155,
+"-10":1.20,"-11":1.245,"-12":1.29,"-13":1.33,"-14":1.37,
+"-15":1.415,"-16":1.46,"-17":1.50,"-18":1.54,"-19":1.585,
+"-20":1.63,"-21":1.67,"-22":1.71,"-23":1.755,"-24":1.80,
+"-25":1.845,"-26":1.89,"-27":1.93,"-28":1.97,"-29":2.015,"-30":2.06
+};
+
+const wood_coef={
+"Смешаные":0.186,"Клен":0.262,"Граб":0.290,"Ясень":0.274,
+"Дуб":0.285,"Бук":0.253,"Береза":0.230,"Вяз":0.250,
+"Сосна":0.208,"Ольха":0.193,"Ель":0.178,"Осика":0.183,
+"Липа":0.179,"Пихта":0.175,"Тополь":0.146
+};
+
+const months=["Октябрь","Ноябрь","Декабрь","Январь","Февраль","Март"];
+const rows=[];
+
+// ====== СОЗДАНИЕ СТРОК ======
+function createRow(name){
+    const div=document.createElement("div");
+    div.className="month";
+
+    const temp=select(temp_coef);
+    const area=input("25");
+    const days=input("30");
+    const burj=input("0.44");
+    const wood=select(wood_coef);
+    const last=input("1000");
+    const check=document.createElement("input");
+    check.type="checkbox"; check.checked=true;
+    const result=document.createElement("span");
+    result.className="result";
+
+    [temp,area,days,burj,wood,last,check].forEach(e=>e.oninput=calc);
+
+    div.innerHTML=`<b>${name}</b>`;
+    div.append(temp," × ",area," × ",days," / ",
+               burj," / ",wood," / ",last," = ",
+               result," ",check);
+
+    rows.push({temp,area,days,burj,wood,last,check,result});
+    document.getElementById("months").append(div);
 }
 
-function triad(n, female){
-    const units_m = ["","один","два","три","чотири","пʼять","шість","сім","вісім","девʼять"];
-    const units_f = ["","одна","дві","три","чотири","пʼять","шість","сім","вісім","девʼять"];
-    const teens = ["десять","одинадцять","дванадцять","тринадцять","чотирнадцять",
-                   "пʼятнадцять","шістнадцять","сімнадцять","вісімнадцять","девʼятнадцять"];
-    const tens = ["","","двадцять","тридцять","сорок","пʼятдесят",
-                  "шістдесят","сімдесят","вісімдесят","девʼяносто"];
-    const hundreds = ["","сто","двісті","триста","чотириста",
-                      "пʼятсот","шістсот","сімсот","вісімсот","девʼятсот"];
-
-    let result = [];
-
-    result.push(hundreds[Math.floor(n/100)]);
-
-    if(n%100 >= 10 && n%100 <= 19){
-        result.push(teens[n%100-10]);
-    }else{
-        result.push(tens[Math.floor((n%100)/10)]);
-        result.push((female ? units_f : units_m)[n%10]);
+function input(v){
+    const i=document.createElement("input");
+    i.value=v; i.size=5;
+    return i;
+}
+function select(obj){
+    const s=document.createElement("select");
+    for(let k in obj){
+        const o=document.createElement("option");
+        o.value=o.textContent=k;
+        s.append(o);
     }
-
-    return result.filter(Boolean).join(" ");
+    return s;
 }
 
-function convert(){
-    let value = document.getElementById("number").value.replace(",",".");
-    let num = parseInt(value);
+// ====== РАСЧЁТ ======
+function calc(){
+    let total=0;
+    rows.forEach(r=>{
+        try{
+            const v=temp_coef[r.temp.value]*+r.area.value*+r.days.value/
+                    +r.burj.value/wood_coef[r.wood.value]/+r.last.value;
+            r.result.textContent=v.toFixed(2);
+            if(r.check.checked) total+=v;
+        }catch{ r.result.textContent="…"; }
+    });
+    document.getElementById("total").textContent=
+        `Сумма: ${total.toFixed(2)} скл.м.`;
+}
 
-    if(isNaN(num)){
-        alert("Введіть коректне число");
+// ====== LOCAL STORAGE ======
+function save(){
+    localStorage.setItem("heating",
+        JSON.stringify(rows.map(r=>({
+            temp:r.temp.value,area:r.area.value,days:r.days.value,
+            burj:r.burj.value,wood:r.wood.value,last:r.last.value,
+            check:r.check.checked
+        })))
+    );
+}
+function load(){
+    const d=JSON.parse(localStorage.getItem("heating")||"[]");
+    d.forEach((s,i)=>{
+        if(rows[i]){
+            rows[i].temp.value=s.temp;
+            rows[i].area.value=s.area;
+            rows[i].days.value=s.days;
+            rows[i].burj.value=s.burj;
+            rows[i].wood.value=s.wood;
+            rows[i].last.value=s.last;
+            rows[i].check.checked=s.check;
+        }
+    });
+    calc();
+}
+
+// ====== КОНВЕРТЕР ДО 100 МЛН ======
+function convertNumber(){
+    let n=parseInt(document.getElementById("numberInput").value);
+    if(isNaN(n)||n<0||n>99999999){
+        document.getElementById("wordsResult").textContent="";
+        return;
+    }
+    if(n===0){
+        document.getElementById("wordsResult").textContent="нуль";
         return;
     }
 
-    let parts = [];
+    const onesM=["","один","два","три","чотири","п’ять","шість","сім","вісім","дев’ять"];
+    const onesF=["","одна","дві","три","чотири","п’ять","шість","сім","вісім","дев’ять"];
+    const teens=["десять","одинадцять","дванадцять","тринадцять","чотирнадцять",
+    "п’ятнадцять","шістнадцять","сімнадцять","вісімнадцять","дев’ятнадцять"];
+    const tens=["","","двадцять","тридцять","сорок","п’ятдесят",
+    "шістдесят","сімдесят","вісімдесят","дев’яносто"];
+    const hundreds=["","сто","двісті","триста","чотириста","п’ятсот",
+    "шістсот","сімсот","вісімсот","дев’ятсот"];
 
-    let thousands = Math.floor(num/1000);
-    let rest = num % 1000;
+    function chunk(num,female=false){
+        let words="";
+        let h=Math.floor(num/100);
+        let t=num%100;
+        if(h) words+=hundreds[h]+" ";
+        if(t>=10&&t<20) words+=teens[t-10]+" ";
+        else{
+            let tt=Math.floor(t/10);
+            let o=t%10;
+            if(tt) words+=tens[tt]+" ";
+            if(o) words+=(female?onesF[o]:onesM[o])+" ";
+        }
+        return words.trim();
+    }
 
+    function plural(n,f){
+        n=Math.abs(n)%100;
+        let n1=n%10;
+        if(n>10&&n<20) return f[2];
+        if(n1>1&&n1<5) return f[1];
+        if(n1==1) return f[0];
+        return f[2];
+    }
+
+    let result="";
+    let millions=Math.floor(n/1000000);
+    if(millions){
+        result+=chunk(millions)+" "+
+        plural(millions,["мільйон","мільйони","мільйонів"])+" ";
+        n%=1000000;
+    }
+
+    let thousands=Math.floor(n/1000);
     if(thousands){
-        parts.push(triad(thousands,true));
-        parts.push(morph(thousands,"тисяча","тисячі","тисяч"));
+        result+=chunk(thousands,true)+" "+
+        plural(thousands,["тисяча","тисячі","тисяч"])+" ";
+        n%=1000;
     }
 
-    if(rest || !parts.length){
-        parts.push(triad(rest,false));
-    }
+    if(n) result+=chunk(n);
 
-    document.getElementById("result").innerText = parts.join(" ");
+    document.getElementById("wordsResult").textContent=result.trim();
 }
 
-function copyText(){
-    let text = document.getElementById("result").innerText;
-    navigator.clipboard.writeText(text);
-}
+// ====== ЗАПУСК ======
+months.forEach(createRow);
+calc();
 
 </script>
-
 </body>
 </html>
