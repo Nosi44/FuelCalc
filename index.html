@@ -10,6 +10,8 @@ body {
   font-family: Arial, sans-serif;
   background: #f5f5f5;
   padding: 15px;
+  max-width: 1000px;
+  margin: auto;
 }
 
 h1 {
@@ -38,6 +40,7 @@ input, select {
 .result {
   font-weight: bold;
   width: 70px;
+  font-size: 16px;
 }
 
 .total {
@@ -45,6 +48,10 @@ input, select {
   font-size: 20px;
   font-weight: bold;
   margin-top: 15px;
+  background: #222;
+  color: #fff;
+  padding: 10px;
+  border-radius: 8px;
 }
 
 .buttons {
@@ -56,6 +63,23 @@ input, select {
   text-align: center;
   margin-top: 8px;
   font-size: 14px;
+  color: #444;
+}
+
+@media (orientation: portrait) {
+  .row {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .row strong {
+    width: auto;
+    margin-bottom: 5px;
+  }
+
+  input, select {
+    width: 100%;
+  }
 }
 </style>
 </head>
@@ -74,8 +98,6 @@ input, select {
 </div>
 
 <div class="status" id="status"></div>
-
-<input type="file" id="fileInput" accept=".json" style="display:none">
 
 <script>
 const tempCoef = {
@@ -143,10 +165,10 @@ function calculateAll() {
       const b = parseFloat(row.querySelector(".area").value);
       const c = parseFloat(row.querySelector(".days").value);
       const d = parseFloat(row.querySelector(".burj").value);
-      const e = woodCoef[row.querySelector(".wood").value];
-      const f = 1000;
+      const e = woodCoef[row.querySelector(".wood").value);
 
-      const result = a * b * c / d / e / f;
+      const result = a * b * c / d / e / 1000;
+
       row.querySelector(".result").textContent = result.toFixed(2);
 
       if (row.querySelector(".enabled").checked) {
@@ -165,8 +187,15 @@ document.addEventListener("input", calculateAll);
 document.addEventListener("change", calculateAll);
 calculateAll();
 
-// ---------- Сохранение ----------
-function saveState() {
+// -------------------
+// Сохранение (новое)
+// -------------------
+async function saveState() {
+  if (!window.showSaveFilePicker) {
+    alert("Браузер не поддерживает сохранение файлов");
+    return;
+  }
+
   const data = rows.map(row => ({
     temp: row.querySelector(".temp").value,
     area: row.querySelector(".area").value,
@@ -176,27 +205,43 @@ function saveState() {
     enabled: row.querySelector(".enabled").checked
   }));
 
-  const blob = new Blob([JSON.stringify(data, null, 2)], {type:"application/json"});
-  const a = document.createElement("a");
-  a.href = URL.createObjectURL(blob);
-  a.download = "fuel_calc.json";
-  a.click();
+  try {
+    const handle = await window.showSaveFilePicker({
+      suggestedName: "fuel_calc.json",
+      types: [{
+        description: "JSON файл",
+        accept: { "application/json": [".json"] }
+      }]
+    });
 
-  document.getElementById("status").textContent = "Сохранено!";
+    const writable = await handle.createWritable();
+    await writable.write(JSON.stringify(data, null, 2));
+    await writable.close();
+
+    document.getElementById("status").textContent = "Сохранено!";
+  } catch (e) {}
 }
 
-// ---------- Загрузка ----------
-function loadState() {
-  document.getElementById("fileInput").click();
-}
+// -------------------
+// Загрузка (новая)
+// -------------------
+async function loadState() {
+  if (!window.showOpenFilePicker) {
+    alert("Браузер не поддерживает загрузку файлов");
+    return;
+  }
 
-document.getElementById("fileInput").addEventListener("change", e => {
-  const file = e.target.files[0];
-  if (!file) return;
+  try {
+    const [handle] = await window.showOpenFilePicker({
+      types: [{
+        description: "JSON файл",
+        accept: { "application/json": [".json"] }
+      }]
+    });
 
-  const reader = new FileReader();
-  reader.onload = () => {
-    const data = JSON.parse(reader.result);
+    const file = await handle.getFile();
+    const text = await file.text();
+    const data = JSON.parse(text);
 
     data.forEach((saved, i) => {
       const row = rows[i];
@@ -212,9 +257,8 @@ document.getElementById("fileInput").addEventListener("change", e => {
 
     calculateAll();
     document.getElementById("status").textContent = "Загружено!";
-  };
-  reader.readAsText(file);
-});
+  } catch (e) {}
+}
 </script>
 
 </body>
